@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # -*- coding: utf8 -*-
 
 """
@@ -74,12 +74,15 @@ try:
     import socket
     import smtplib
     import getpass
+    import subprocess
+    import snoop
     from argparse import ArgumentParser, SUPPRESS
-    from ConfigParser import SafeConfigParser
+    from configparser import SafeConfigParser
     from subprocess import Popen, PIPE, STDOUT
     from email.mime.text import MIMEText
     from email.mime.multipart import MIMEMultipart
     from email.utils import COMMASPACE, formatdate
+    from loguru import logger
 except ImportError:
     # Checks the installation of the necessary python modules
     print((os.linesep * 2).join(["An error found importing one module:",
@@ -296,7 +299,7 @@ class Logger():
         """
         mode = 'ab' if append else 'wb'
         with open(self.filename, mode) as log_file:
-            log_file.write(self.__log)
+            log_file.write(self.__log.encode('utf-8'))
 
 
 def arguments():
@@ -407,6 +410,8 @@ def arguments():
     shell.add_argument("--use-cache", action="store_const",
                        const=" --use-cache", dest="use_cache", default="",
                        help="use cached directory listings")
+    shell.add_argument("--update-cloud", action="store_true",
+                       default="false", help="re-index new files in cloud")
     shell.add_argument("--del-source", action="store_const",
                        const=" --Remove-source-files",
                        dest="del_source", default="",
@@ -460,8 +465,8 @@ def arguments():
     shell.add_argument("--no-compress", action="store_true",
                        dest="no_compress", help="don't create daily archive "
                        "files", default=False)
-    shell.add_argument("--no-email", action="store_true", dest="no_email",
-                       help="no sends email with the log", default=False)
+    shell.add_argument("--send-email", action="store_false", dest="no_email",
+                       help="sends email with the log", default=True)
     shell.add_argument("--smtp_server", dest="smtp_server",
                        default="localhost", metavar="server",
                        help="set a smtp server")
@@ -543,7 +548,7 @@ def notify(msg, status):
     note.set_icon_from_pixbuf(icon)
     try:
         note.show()
-    except Exception, e:
+    except Exception as e:
         NOTIFY_ERRORS.append(e)
 
 
@@ -597,19 +602,20 @@ def compress(path):
     return output
 
 
+@logger.catch()
 def mirror(args, log):
     """Mirror the directories."""
 
     user = '' if args.anonymous else ' '.join(args.login)
     local, remote = os.path.normpath(args.local), os.path.normpath(args.remote)
-    port = '-p {0}'.format(args.port) if args.port else ''
+    port = f"-p {args.port}" if args.port else ''
     include = ''
     for iglob in args.inc_glob:
-        include += ' --include-glob {0}'.format(iglob)
+        include += f" --include-glob {iglob}"
     exclude = ''
     for eglob in args.exc_glob:
-        exclude += ' --exclude-glob {0}'.format(eglob)
-    parallel = ' --parallel={0}'.format(args.parallel) if args.parallel else ''
+        exclude += f" --exclude-glob {eglob}"
+    parallel = f" --parallel={args.parallel}" if args.parallel else ''
 
     url = 'http://joedicastro.com'
     msg = 'Connected to {1} as {2}{0}'.format(os.linesep, args.site,
@@ -619,7 +625,7 @@ def mirror(args, log):
                                       remote if args.reverse else local)
     log.header(url, msg)
     log.time('Start time')
-    notify('Mirroring with {0}...'.format(args.site), 'sync')
+    notify(f"Mirroring with {args.site}...", 'sync')
 
     if not os.path.exists(local):
         os.mkdir(local)
@@ -638,11 +644,10 @@ def mirror(args, log):
     log.list('lftp mirror arguments', scp_args)
 
     with open('ftpscript', 'w') as script:
-        lines = ('open {0}ftp://{1} {2}'.format(args.secure, args.site, port),
-                 'user {0}'.format(user),
-                 'mirror {0} {1} {2}'.format(scp_args,
-                                             local if args.reverse else remote,
-                                             remote if args.reverse else local),
+        lines = (f"open {args.secure}ftp://{args.site} {port}",
+                 f"user {user}",
+#                 "set ssl:verify-certificate no",
+                 f"mirror {scp_args} {local if args.reverse else remote} {remote if args.reverse else local}",
                  'exit')
         script.write(os.linesep.join(lines))
 
@@ -673,6 +678,22 @@ def mirror(args, log):
     log.write(True)
 
     os.remove(script.name)
+
+
+@logger.catch()
+def reindex_cloud(args, log):
+    local_path = re.match(r".*data/(.*)", args.local)
+    if local_path:
+        cloud_path = local_path.group(1)
+        notify(f"Re-Indexing cloud folder ${cloud_path}...", 'info')
+        cmd = ['sudo', '-u', 'www-data', '/var/www/html/cloud.stephanradom.de/occ', 'files:scan', '--path', cloud_path]
+        ##sync = Popen(cmd, stdout=PIPE, stderr={True: STDOUT, False: None}[args.quiet])
+        ##subprocess.run(cmd, check=True, stdout=STDOUT, stderr={True: STDOUT, False: None}[args.quiet])
+        subprocess.run(cmd, check=True)
+        notify(f"Cloud folder ${cloud_path} fully indexed.", 'ok')
+    else:
+        notify(f"Failed to gather cloud path!", 'error')
+        raise Exception("Failed to gather cloud path!")
 
 
 def parse_parms(*parms):
@@ -745,6 +766,9 @@ def main():
             mirror(args, log)
     else:
         mirror(args, log)
+
+    if args.update_cloud:
+        reindex_cloud(args, log)
 
     # send the log by mail and write the log file
     if not args.no_email:
