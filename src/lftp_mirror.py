@@ -681,15 +681,29 @@ def mirror(args, log):
 
 
 @logger.catch()
+def find_occ():
+    try:
+        result = subprocess.run(['locate', 'occ'], stdout=subprocess.PIPE, text=True)
+        if result.returncode == 0:
+            return result.stdout
+    except FileNotFoundError:
+        pass
+
+    result = subprocess.run(['find', '/', '-xdev', '-type', 'f', '-name', 'occ'], stdout=subprocess.PIPE, text=True)
+    if result.returncode == 0:
+        return result.stdout
+    else:
+        raise FileNotFoundError(f"occ not found!")
+
+
+@logger.catch()
 def reindex_cloud(args, log):
     local_path = re.match(r".*data/(.*)", args.local)
+    binary_path = find_occ()
     if local_path:
         cloud_path = local_path.group(1)
         notify(f"Re-Indexing cloud folder ${cloud_path}...", 'info')
-        cmd = ['sudo', '-u', 'www-data', '/var/www/html/cloud.stephanradom.de/occ', 'files:scan', '--path', cloud_path]
-        ##sync = Popen(cmd, stdout=PIPE, stderr={True: STDOUT, False: None}[args.quiet])
-        ##subprocess.run(cmd, check=True, stdout=STDOUT, stderr={True: STDOUT, False: None}[args.quiet])
-        subprocess.run(cmd, check=True)
+        subprocess.run(['sudo', '-u', 'www-data', binary_path, 'files:scan', '--path', cloud_path], check=True)
         notify(f"Cloud folder ${cloud_path} fully indexed.", 'ok')
     else:
         notify(f"Failed to gather cloud path!", 'error')
@@ -780,4 +794,4 @@ def main():
 
 if __name__ == "__main__":
     check_execs_posix_win('lftp')  # Check first if lftp is installed
-    main()
+    main(
