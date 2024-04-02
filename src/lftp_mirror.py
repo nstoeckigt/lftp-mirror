@@ -375,6 +375,9 @@ def arguments():
     shell.add_argument("-s", "--secure", action="store_const", const="s",
                        dest="secure", default="",
                        help="use the sftp protocol instead of ftp")
+    shell.add_argument("--ssl-verify", action="store_const", const="yes",
+                       dest="ssl_verify", default="no",
+                       help="verify ssl certificates")
     shell.add_argument("-e", "--erase", action="store_const", const="e",
                        dest="erase", default="",
                        help="delete files not present at target site")
@@ -646,7 +649,7 @@ def mirror(args, log):
     with open('ftpscript', 'w') as script:
         lines = (f"open {args.secure}ftp://{args.site} {port}",
                  f"user {user}",
-#                 "set ssl:verify-certificate no",
+                 f"set ssl:verify-certificate {args.ssl_verify}",
                  f"mirror {scp_args} {local if args.reverse else remote} {remote if args.reverse else local}",
                  'exit')
         script.write(os.linesep.join(lines))
@@ -657,7 +660,7 @@ def mirror(args, log):
                                            False: None}[args.quiet])
     # end mirroring
 
-    log.list('lftp output', ''.join(sync.stdout.readlines()))
+    log.list('lftp output', ''.join(byz.decode() for byz in sync.stdout.readlines()))
 
     if NOTIFY_ERRORS:
         log.list('Notification errors', set(NOTIFY_ERRORS))
@@ -679,19 +682,21 @@ def mirror(args, log):
 
     os.remove(script.name)
 
+    return sync.returncode
+
 
 @logger.catch()
 def find_occ():
     try:
         result = subprocess.run(['locate', 'occ'], stdout=subprocess.PIPE, text=True)
         if result.returncode == 0:
-            return result.stdout
+            return result.stdout.strip()
     except FileNotFoundError:
         pass
 
     result = subprocess.run(['find', '/', '-xdev', '-type', 'f', '-name', 'occ'], stdout=subprocess.PIPE, text=True)
     if result.returncode == 0:
-        return result.stdout
+        return result.stdout.strip()
     else:
         raise FileNotFoundError(f"occ not found!")
 
@@ -765,7 +770,7 @@ def main():
                                                   cron_user,
                                                   cron_pass,
                                                   cron_options))
-        mirror(args, log)
+        mir_res = mirror(args, log)
     elif args.cfg:
         cfg = SafeConfigParser()
         cfg.read(args.config_file)
@@ -777,9 +782,9 @@ def main():
                                                       cfg.get(sect, 'user'),
                                                       cfg.get(sect, 'password'),
                                                       cfg.get(sect, 'options')))
-            mirror(args, log)
+            mir_res = mirror(args, log)
     else:
-        mirror(args, log)
+        mir_res = mirror(args, log)
 
     if args.update_cloud:
         reindex_cloud(args, log)
@@ -794,4 +799,4 @@ def main():
 
 if __name__ == "__main__":
     check_execs_posix_win('lftp')  # Check first if lftp is installed
-    main(
+    main()
