@@ -62,9 +62,10 @@ __license__ = "GNU General Public License version 3"
 __date__ = "16/9/2012"
 __version__ = "0.15"
 
+import sys
+import os
+
 try:
-    import sys
-    import os
     import glob
     import base64
     import time
@@ -123,7 +124,7 @@ class Logger():
         """
         self.__log = ''
         self.__script_name = os.path.basename(__file__).split('.')[0]
-        self.filename = '{0}.log'.format(self.__script_name)
+        self.filename = f"{self.__script_name}.log"
 
     def __len__(self):
         return len(self.__log)
@@ -216,7 +217,7 @@ class Logger():
         ========================================================
 
         """
-        script = '{0} (ver. {1})'.format(self.__script_name, __version__)
+        script = f"{self.__script_name} (ver. { __version__}"
         self.block('Script', [script, url, '', msg])
 
     def get(self):
@@ -247,8 +248,7 @@ class Logger():
 
         dest_to_addrs = COMMASPACE.join(dest_to)  # receivers mails
         message = MIMEMultipart()
-        message['Subject'] = '{0} - {1}'.format(subject,
-                                                time.strftime('%A %x, %X'))
+        message['Subject'] = f"{subject} - {time.strftime('%A %x, %X')}"
         message['From'] = send_from
         message['To'] = dest_to_addrs
         message['Date'] = formatdate(localtime=True)
@@ -497,7 +497,7 @@ def check_execs_posix_win(*progs):
     """
     def not_found(app):
         """ If executable is not installed, exit and report."""
-        msg = 'The {0} program is necessary to run this script'.format(app)
+        msg = f"The {app} program is necessary to run this script"
         sys.exit(msg)
 
     windows_paths = {}
@@ -509,7 +509,7 @@ def check_execs_posix_win(*progs):
     for prog in progs:
         if is_windows:
             # Set all commands to search the executable in all drives
-            win_cmds = ['dir /B /S {0}\*{1}.exe'.format(letter, prog) for
+            win_cmds = [fr"dir /B /S {letter}\*{prog}.exe" for
                         letter in windows_drives]
             # Get the first location (usually in C:) of the all founded where
             # the executable exists
@@ -588,11 +588,11 @@ def compress(path):
 
     Creates a file for each weekday, an removes the old files if exists"""
     dir2gz = os.path.basename(path)
-    old_gzs = glob.glob('{0}*{1}.tar.gz'.format(dir2gz, time.strftime('%a')))
-    gz_name = "{0}_{1}.tar.gz".format(dir2gz, time.strftime('%d%b%Y_%H:%M_%a'))
-    gz_file = tarfile.open(gz_name, "w:gz")
-    gz_file.add(path, arcname=dir2gz)
-    gz_file.close()
+    old_gzs = glob.glob(f"{dir2gz}*{time.strftime('%a')}.tar.gz")
+    gz_name = f"{dir2gz}_{time.strftime('%d%b%Y_%H:%M_%a')}.tar.gz"
+    with tarfile.open(gz_name, "w:gz") as gz_file:
+        gz_file.add(path, arcname=dir2gz)
+        gz_file.close()
     output = os.linesep.join(['Created file:', '', os.path.join(os.getcwd(),
                                                                 gz_name)])
     for old_gz in old_gzs:
@@ -618,9 +618,7 @@ def mirror(args, log):
     parallel = f" --parallel={args.parallel}" if args.parallel else ''
 
     url = 'http://joedicastro.com'
-    msg = 'Connected to {1} as {2}{0}'.format(os.linesep, args.site,
-                                              'anonymous' if args.anonymous
-                                              else args.login[0])
+    msg = f"Connected to {args.site} as {'anonymous' if args.anonymous else args.login[0]}{os.linesep}"
     msg += 'Mirror {0} to {1}'.format(local if args.reverse else remote,
                                       remote if args.reverse else local)
     log.header(url, msg)
@@ -653,11 +651,9 @@ def mirror(args, log):
 
     # mirror
     cmd = ['lftp', '-d', '-f', script.name]
-    sync = Popen(cmd, stdout=PIPE, stderr={True: STDOUT,
-                                           False: None}[args.quiet])
+    with Popen(cmd, stdout=PIPE, stderr={True: STDOUT, False: None}[args.quiet]) as sync:
+        log.list('lftp output', ''.join(sync.stdout.readlines()))
     # end mirroring
-
-    log.list('lftp output', ''.join(sync.stdout.readlines()))
 
     if NOTIFY_ERRORS:
         log.list('Notification errors', set(NOTIFY_ERRORS))
@@ -668,7 +664,7 @@ def mirror(args, log):
         log.list('Rotate compressed copies', compress(local))
     # end compress
 
-    gz_size = sum([get_size(gz) for gz in glob.glob('{0}*.gz'.format(local))])
+    gz_size = sum([get_size(gz) for gz in glob.glob(f"{local}*.gz")])
     log_size = get_size(log.filename) if os.path.exists(log.filename) else 0
     local_size = get_size(local)
     size = best_unit_size(local_size + gz_size + log_size)
@@ -692,34 +688,27 @@ def find_occ():
     result = subprocess.run(['find', '/', '-xdev', '-type', 'f', '-name', 'occ'], stdout=subprocess.PIPE, text=True)
     if result.returncode == 0:
         return result.stdout
-    else:
-        raise FileNotFoundError(f"occ not found!")
+    raise FileNotFoundError("occ not found!")
 
 
 @logger.catch()
-def reindex_cloud(args, log):
+def reindex_cloud(args):
     local_path = re.match(r".*data/(.*)", args.local)
     binary_path = find_occ()
     if local_path:
         cloud_path = local_path.group(1)
         notify(f"Re-Indexing cloud folder ${cloud_path}...", 'info')
-        subprocess.run(['sudo', '-u', 'www-data', binary_path, 'files:scan', '--path', cloud_path], check=True)
+        subprocess.run(['sudo', '-u', 'www-data', binary_path, 'files:scan',
+            '--path', cloud_path], check=True)
         notify(f"Cloud folder ${cloud_path} fully indexed.", 'ok')
     else:
-        notify(f"Failed to gather cloud path!", 'error')
+        notify("Failed to gather cloud path!", 'error')
         raise Exception("Failed to gather cloud path!")
 
 
 def parse_parms(*parms):
     """Parse parameters from script or config file to shell format."""
-    parameters = ("shell {0} {1} {2} {3} {4} {5} {6}".
-                  format(parms[0],
-                         '-p {0}'.format(parms[1]) if parms[1] else '',
-                         parms[2],
-                         parms[3],
-                         '-l {0}'.format(parms[4]) if parms[4] else '',
-                         base64.b64decode(parms[5]),
-                         parms[6]))
+    parameters = f"shell {parms[0]} -p {parms[1] if parms[1] else ''} {parms[2]} {parms[3]} -l {parms[4] if parms[4] else ''} {base64.b64decode(parms[5])} {parms[6]}"
     return parameters.split()
 
 
@@ -782,7 +771,7 @@ def main():
         mirror(args, log)
 
     if args.update_cloud:
-        reindex_cloud(args, log)
+        reindex_cloud(args)
 
     # send the log by mail and write the log file
     if not args.no_email:
@@ -794,4 +783,4 @@ def main():
 
 if __name__ == "__main__":
     check_execs_posix_win('lftp')  # Check first if lftp is installed
-    main(
+    main()
