@@ -76,14 +76,14 @@ try:
     import smtplib
     import getpass
     import subprocess
-    import snoop
     from argparse import ArgumentParser, SUPPRESS
-    from configparser import SafeConfigParser
+    from configparser import ConfigParser
     from subprocess import Popen, PIPE, STDOUT
     from email.mime.text import MIMEText
     from email.mime.multipart import MIMEMultipart
     from email.utils import COMMASPACE, formatdate
     from loguru import logger
+    import snoop
 except ImportError:
     # Checks the installation of the necessary python modules
     print((os.linesep * 2).join(["An error found importing one module:",
@@ -199,7 +199,7 @@ class Logger():
         ========================================================
 
         """
-        self.block(title, '{0:>80}'.format(time.strftime('%A %x, %X')))
+        self.block(title, f"{time.strftime('%A %x, %X'):>80}")
 
     def header(self, url, msg):
         """A self.block() formated header for the log info.
@@ -484,7 +484,7 @@ def arguments():
                        help="a list of receiver(s)' email address(es)")
 
     parser.add_argument("-v", "--version", action="version",
-                        version="%(prog)s {0}".format(__version__),
+                        version="%(prog)s {__version__}",
                         help="show program's version number and exit")
     return parser
 
@@ -504,11 +504,13 @@ def check_execs_posix_win(*progs):
         sys.exit(msg)
 
     windows_paths = {}
-    is_windows = True if platform.system() == 'Windows' else False
+    is_windows = platform.system() == 'Windows'
     # get all the drive unit letters if the OS is Windows
-    windows_drives = re.findall(r'(\w:)\\',
-                                Popen('fsutil fsinfo drives', stdout=PIPE).
-                                communicate()[0]) if is_windows else None
+    windows_drives = None
+    if is_windows:
+        with Popen('fsutil fsinfo drives', stdout=PIPE) as proc:
+            windows_drives = re.findall(r'(\w:)', proc.communicate()[0].decode())
+
     for prog in progs:
         if is_windows:
             # Set all commands to search the executable in all drives
@@ -516,15 +518,19 @@ def check_execs_posix_win(*progs):
                         letter in windows_drives]
             # Get the first location (usually in C:) of the all founded where
             # the executable exists
-            exe_paths = (''.join([Popen(cmd, stdout=PIPE, stderr=PIPE,
-                                        shell=True).communicate()[0] for
-                                  cmd in win_cmds])).split(os.linesep)[0]
+            exe_paths_list = []
+            for cmd in win_cmds:
+                with Popen(cmd, stdout=PIPE, stderr=PIPE, shell=True) as proc:
+                    exe_paths_list.append(proc.communicate()[0].decode())
+            exe_paths = ''.join(exe_paths_list).split(os.linesep, maxsplit=1)[0]
+
             # Assign the path to the executable or report not found if empty
             windows_paths[prog] = exe_paths if exe_paths else not_found(prog)
         else:
             try:
-                Popen([prog, '--help'], stdout=PIPE, stderr=PIPE)
-            except OSError:
+                subprocess.run([prog, '--help'], stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                        check=True)
+            except (OSError, subprocess.CalledProcessError):
                 not_found(prog)
     return windows_paths, is_windows
 
@@ -761,7 +767,7 @@ def main():
                                                   cron_options))
         mir_res = mirror(args, log)
     elif args.cfg:
-        cfg = SafeConfigParser()
+        cfg = ConfigParser()
         cfg.read(args.config_file)
         for sect in cfg.sections():
             args = arguments().parse_args(parse_parms(cfg.get(sect, 'site'),
