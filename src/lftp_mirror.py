@@ -57,10 +57,27 @@
 #    along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #==============================================================================
 
-__author__ = "joe di castro - joe@joedicastro.com"
+#==============================================================================
+#    Copyleft 2023 nico stöckigt <info@nstoeckigt.de>
+#
+#    The previous rights and legal terms still aply!
+#
+#    This software was rewritten for python 3.x by the author above.
+# 
+#    Because ftp is quite dead but still has it niches this program has been
+#    adopted to be used with own~/nextCloud and an ftp source.
+#==============================================================================
+
+# original:
+#__author__ = "joe di castro - joe@joedicastro.com"
+#__license__ = "GNU General Public License version 3"
+#__date__ = "16/9/2012"
+#__version__ = "0.15"
+
+__author__ = "nico stöckigt - info@nstoeckigt.de"
 __license__ = "GNU General Public License version 3"
-__date__ = "16/9/2012"
-__version__ = "0.15"
+__date__ = "06/06/2024"
+__version__ = "0.16a"
 
 import sys
 import os
@@ -93,6 +110,7 @@ except ImportError:
 
 # Notify it's not essential and libnotify it's not always installed (in Ubuntu
 # & Debian it's optional) but it's very useful to show operation's progress
+TRACE = False
 NOT_NOTIFY = True
 NOTIFY_ERRORS = []
 if os.getenv('DISPLAY', ''):
@@ -462,6 +480,8 @@ def arguments():
                        help="include matching files. GP is a glob pattern, "
                        "e.g. '*.zip'")
 
+    shell.add_argument("--trace", action="store_true", dest="trace",
+                       help=argparse.SUPPRESS, default=False)  # allow function snooping
     shell.add_argument("-q", "--quiet", action="store_true", dest="quiet",
                        help="the detailed shell process is no "
                        "displayed, but is added to the log", default=False)
@@ -487,6 +507,17 @@ def arguments():
                         version="%(prog)s {__version__}",
                         help="show program's version number and exit")
     return parser
+
+
+def trace(func):
+    """
+    conditional snoop
+    """
+    def wrapper(*args, **kwargs):
+        if TRACE:
+            return snoop(func)(*args, **kwargs)
+        return func(*args, **kwargs)
+    return wrapper
 
 
 def check_execs_posix_win(*progs):
@@ -612,6 +643,7 @@ def compress(path):
 
 
 @logger.catch()
+@trace
 def mirror(args, log):
     """Mirror the directories."""
 
@@ -752,6 +784,7 @@ def main():
 
     # first, parse the arguments
     args = arguments().parse_args()
+    TRACE=args.trace
 
     # initalize the log
     log = Logger()
