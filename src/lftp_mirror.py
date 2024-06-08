@@ -480,8 +480,6 @@ def arguments():
                        help="include matching files. GP is a glob pattern, "
                        "e.g. '*.zip'")
 
-    shell.add_argument("--trace", action="store_true", dest="trace",
-                       help=argparse.SUPPRESS, default=False)  # allow function snooping
     shell.add_argument("-q", "--quiet", action="store_true", dest="quiet",
                        help="the detailed shell process is no "
                        "displayed, but is added to the log", default=False)
@@ -503,6 +501,8 @@ def arguments():
                        metavar="email",
                        help="a list of receiver(s)' email address(es)")
 
+    parser.add_argument("--trace", action="store_true", dest="trace",
+                        help=SUPPRESS, default=False)  # allow function snooping
     parser.add_argument("-v", "--version", action="version",
                         version="%(prog)s {__version__}",
                         help="show program's version number and exit")
@@ -783,14 +783,15 @@ def main():
 #==============================================================================
 
     # first, parse the arguments
-    args = arguments().parse_args()
+    parser = arguments()
+    args = parser.parse_args()
     TRACE=args.trace
 
     # initalize the log
     log = Logger()
 
     # set the arguments depending of execution mode
-    if args.cron:
+    if hasattr(args, 'cron') and args.cron:
         args = arguments().parse_args(parse_parms(cron_site,
                                                   cron_port,
                                                   cron_remote,
@@ -799,7 +800,7 @@ def main():
                                                   cron_pass,
                                                   cron_options))
         mir_res = mirror(args, log)
-    elif args.cfg:
+    elif hasattr(args, 'cfg') and  args.cfg:
         cfg = ConfigParser()
         cfg.read(args.config_file)
         for sect in cfg.sections():
@@ -811,8 +812,11 @@ def main():
                                                       cfg.get(sect, 'password'),
                                                       cfg.get(sect, 'options')))
             mir_res = mirror(args, log)
-    else:
+    elif hasattr(args, 'shell') and  args.shell:
         mir_res = mirror(args, log)
+    else:
+        parser.print_help()
+        exit(-1)
 
     if args.update_cloud:
         reindex_cloud(args)
