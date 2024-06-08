@@ -696,6 +696,8 @@ def mirror(args, log):
         log.list('lftp output', ''.join(sync.stdout.readlines()))
     # end mirroring
 
+    log.list('lftp output', ''.join(sync.stdout.readlines()))
+
     if NOTIFY_ERRORS:
         log.list('Notification errors', set(NOTIFY_ERRORS))
 
@@ -735,7 +737,7 @@ def find_occ():
 
 
 @logger.catch()
-def reindex_cloud(args):
+def reindex_cloud(args, log):
     local_path = re.match(r".*data/(.*)", args.local)
     binary_path = find_occ()
     if local_path:
@@ -819,7 +821,7 @@ def main():
         exit(-1)
 
     if args.update_cloud:
-        reindex_cloud(args)
+        reindex_cloud(args, log)
 
     # send the log by mail and write the log file
     if not args.no_email:
