@@ -63,7 +63,7 @@
 #    The previous rights and legal terms still aply!
 #
 #    This software was rewritten for python 3.x by the author above.
-# 
+#
 #    Because ftp is quite dead but still has it niches this program has been
 #    adopted to be used with own~/nextCloud and an ftp source.
 #==============================================================================
@@ -757,6 +757,7 @@ def parse_parms(*parms):
     return parameters.split()
 
 
+@snoop
 def main():
     """Main sect"""
 
@@ -787,6 +788,7 @@ def main():
     # first, parse the arguments
     parser = arguments()
     args = parser.parse_args()
+    print(f"ARGS: {args!r}\n") 
     TRACE=args.trace
 
     # initalize the log
@@ -794,7 +796,7 @@ def main():
 
     # set the arguments depending of execution mode
     if hasattr(args, 'cron') and args.cron:
-        args = arguments().parse_args(parse_parms(cron_site,
+        args = parser.parse_args(parse_parms(cron_site,
                                                   cron_port,
                                                   cron_remote,
                                                   cron_local,
@@ -806,7 +808,7 @@ def main():
         cfg = ConfigParser()
         cfg.read(args.config_file)
         for sect in cfg.sections():
-            args = arguments().parse_args(parse_parms(cfg.get(sect, 'site'),
+            args = parser.parse_args(parse_parms(cfg.get(sect, 'site'),
                                                       cfg.get(sect, 'port'),
                                                       cfg.get(sect, 'remote'),
                                                       cfg.get(sect, 'local'),
