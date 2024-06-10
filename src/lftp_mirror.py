@@ -666,10 +666,11 @@ def mirror(args, log):
     log.time('Start time')
     notify(f"Mirroring with {args.site}...", 'sync')
 
-    if not os.path.exists(local):
-        os.mkdir(local)
-        log.list('Created new directory', local)
-    os.chdir(os.path.join(local, os.pardir))
+    with snoop:
+        if not os.path.exists(local):
+            os.mkdir(local)
+            log.list('Created new directory', local)
+        os.chdir(os.path.join(local, os.pardir))
 
     # create the script file to import with lftp
     scp_args = ('-vvv' + args.erase + args.newer + args.reverse
