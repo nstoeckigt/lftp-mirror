@@ -792,11 +792,11 @@ def main():
     # initalize the log
     log = Logger()
 
-    print(f"ARGS: {args!r}")
+    if TRACE:
+        print(f"ARGS: {args!r}")
 
     # set the arguments depending of execution mode
     if hasattr(args, 'cron') and args.cron:
-        print("CRON")
         args = parser.parse_args(parse_parms(cron_site,
                                              cron_port,
                                              cron_remote,
@@ -806,7 +806,6 @@ def main():
                                              cron_options))
         mir_res = mirror(args, log)
     elif hasattr(args, 'cfg') and  args.cfg:
-        print("CFG")
         cfg = ConfigParser()
         cfg.read(args.config_file)
         for sect in cfg.sections():
@@ -818,13 +817,8 @@ def main():
                                                  cfg.get(sect, 'password'),
                                                  cfg.get(sect, 'options')))
             mir_res = mirror(args, log)
-    elif hasattr(args, 'shell') and  args.shell:
-        print("SHELL")
-        mir_res = mirror(args, log)
     else:
-        print("HELP")
-        parser.print_help()
-        exit(-1)
+        mir_res = mirror(args, log)
 
     if args.update_cloud:
         reindex_cloud(args, log)
