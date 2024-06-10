@@ -757,7 +757,6 @@ def parse_parms(*parms):
     return parameters.split()
 
 
-@snoop
 def main():
     """Main sect"""
 
@@ -788,37 +787,42 @@ def main():
     # first, parse the arguments
     parser = arguments()
     args = parser.parse_args()
-    print(f"ARGS: {args!r}\n") 
     TRACE=args.trace
 
     # initalize the log
     log = Logger()
 
+    print(f"ARGS: {args!r}")
+
     # set the arguments depending of execution mode
     if hasattr(args, 'cron') and args.cron:
+        print("CRON")
         args = parser.parse_args(parse_parms(cron_site,
-                                                  cron_port,
-                                                  cron_remote,
-                                                  cron_local,
-                                                  cron_user,
-                                                  cron_pass,
-                                                  cron_options))
+                                             cron_port,
+                                             cron_remote,
+                                             cron_local,
+                                             cron_user,
+                                             cron_pass,
+                                             cron_options))
         mir_res = mirror(args, log)
     elif hasattr(args, 'cfg') and  args.cfg:
+        print("CFG")
         cfg = ConfigParser()
         cfg.read(args.config_file)
         for sect in cfg.sections():
             args = parser.parse_args(parse_parms(cfg.get(sect, 'site'),
-                                                      cfg.get(sect, 'port'),
-                                                      cfg.get(sect, 'remote'),
-                                                      cfg.get(sect, 'local'),
-                                                      cfg.get(sect, 'user'),
-                                                      cfg.get(sect, 'password'),
-                                                      cfg.get(sect, 'options')))
+                                                 cfg.get(sect, 'port'),
+                                                 cfg.get(sect, 'remote'),
+                                                 cfg.get(sect, 'local'),
+                                                 cfg.get(sect, 'user'),
+                                                 cfg.get(sect, 'password'),
+                                                 cfg.get(sect, 'options')))
             mir_res = mirror(args, log)
     elif hasattr(args, 'shell') and  args.shell:
+        print("SHELL")
         mir_res = mirror(args, log)
     else:
+        print("HELP")
         parser.print_help()
         exit(-1)
 
