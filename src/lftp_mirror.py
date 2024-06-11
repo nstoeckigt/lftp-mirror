@@ -724,7 +724,7 @@ def find_occ():
     try:
         result = subprocess.run(['locate', 'occ'], stdout=subprocess.PIPE, text=True)
         if result.returncode == 0:
-            return [entry for entry in result.stdout.strip().split('\n') if path.endswith('occ')]
+            return [entry for entry in result.stdout.strip().split('\n') if entry.endswith('occ')]
     except FileNotFoundError:
         pass
 
