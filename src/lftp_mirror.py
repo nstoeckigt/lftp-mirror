@@ -693,7 +693,7 @@ def mirror(args, log):
     # mirror
     cmd = ['lftp', '-d', '-f', script.name]
     with Popen(cmd, stdout=PIPE, stderr={True: STDOUT, False: None}[args.quiet]) as sync:
-        log.list('lftp output', ''.join(sync.stdout.readlines()).decode('utf-8'))
+        log.list('lftp output', ''.join(sync.stdout.readlines().decode('utf-8')))
     # end mirroring
 
     if NOTIFY_ERRORS:
@@ -736,10 +736,9 @@ def find_occ():
 
 @logger.catch()
 def reindex_cloud(args, log):
-    local_path = re.match(r".*data/(.*)", args.local)
     binary_path = next((entry for entry in find_occ() if re.match(r".*occ", entry)), None)
-    if local_path:
-        cloud_path = local_path.group(1)
+    if args.local:
+        cloud_path = args.local.group(1)
         notify(f"Re-Indexing cloud folder ${cloud_path}...", 'info')
         subprocess.run(['sudo', '-u', 'www-data', binary_path, 'files:scan',
             '--path', cloud_path], check=True)
