@@ -693,7 +693,7 @@ def mirror(args, log):
     # mirror
     cmd = ['lftp', '-d', '-f', script.name]
     with Popen(cmd, stdout=PIPE, stderr={True: STDOUT, False: None}[args.quiet]) as sync:
-        log.list('lftp output', ''.join(sync.stdout.readlines().decode('utf-8')))
+        log.list('lftp output', ''.join(sync.stdout.readlines()).decode('utf-8'))
     # end mirroring
 
     if NOTIFY_ERRORS:
@@ -736,16 +736,21 @@ def find_occ():
 
 @logger.catch()
 def reindex_cloud(args, log):
+    """run nextcloud reindex in users files"""
+    #TODO: use config for nextcloud user and storage path
+    local_path = re.match(r".*files/(.*)", args.local)
+    if not local_path:
+        local_user = getpass.getuser()
+        if local_user == 'root':
+            local_user = 'stephan'
+        local_path = f"/media/storage/nextcloud-data/{local_user}/files/{args.local}"
+
+    cloud_path = local_path
     binary_path = next((entry for entry in find_occ() if re.match(r".*occ", entry)), None)
-    if args.local:
-        cloud_path = args.local.group(1)
-        notify(f"Re-Indexing cloud folder ${cloud_path}...", 'info')
-        subprocess.run(['sudo', '-u', 'www-data', binary_path, 'files:scan',
-            '--path', cloud_path], check=True)
-        notify(f"Cloud folder ${cloud_path} fully indexed.", 'ok')
-    else:
-        notify("Failed to gather cloud path!", 'error')
-        raise Exception("Failed to gather cloud path!")
+    notify(f"Re-Indexing cloud folder ${cloud_path}...", 'info')
+    subprocess.run(['sudo', '-u', 'www-data', binary_path, 'files:scan',
+        '--path', cloud_path], check=True)
+    notify(f"Cloud folder ${cloud_path} fully indexed.", 'ok')
 
 
 def parse_parms(*parms):
