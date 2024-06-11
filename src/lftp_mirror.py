@@ -693,10 +693,8 @@ def mirror(args, log):
     # mirror
     cmd = ['lftp', '-d', '-f', script.name]
     with Popen(cmd, stdout=PIPE, stderr={True: STDOUT, False: None}[args.quiet]) as sync:
-        log.list('lftp output', ''.join(sync.stdout.readlines()))
+        log.list('lftp output', ''.join(sync.stdout.readlines()).decode('utf-8'))
     # end mirroring
-
-    log.list('lftp output', ''.join(sync.stdout.readlines()))
 
     if NOTIFY_ERRORS:
         log.list('Notification errors', set(NOTIFY_ERRORS))
