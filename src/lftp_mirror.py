@@ -745,7 +745,7 @@ def reindex_cloud(args, log):
             local_user = 'stephan'
         local_path = f"/media/storage/nextcloud-data/{local_user}/files/{args.local}"
 
-    cloud_path = local_path
+    cloud_path = re.match(r".*data/([^/]+/files/.*)", local_path).groups()[0]
     binary_path = next((entry for entry in find_occ() if re.match(r".*occ", entry)), None)
     notify(f"Re-Indexing cloud folder ${cloud_path}...", 'info')
     subprocess.run(['sudo', '-u', 'www-data', binary_path, 'files:scan',
