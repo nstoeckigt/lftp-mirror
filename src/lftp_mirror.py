@@ -737,7 +737,7 @@ def find_occ():
 @logger.catch()
 def reindex_cloud(args, log):
     local_path = re.match(r".*data/(.*)", args.local)
-    binary_path = find_occ()
+    binary_path = next((entry for entry in find_occ() if re.match(r".*occ", entry)), None)
     if local_path:
         cloud_path = local_path.group(1)
         notify(f"Re-Indexing cloud folder ${cloud_path}...", 'info')
