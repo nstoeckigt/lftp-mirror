@@ -724,13 +724,13 @@ def find_occ():
     try:
         result = subprocess.run(['locate', 'occ'], stdout=subprocess.PIPE, text=True)
         if result.returncode == 0:
-            return result.stdout.strip()
+            return [entry for entry in result.stdout.strip().split('\n') if path.endswith('occ')]
     except FileNotFoundError:
         pass
 
     result = subprocess.run(['find', '/', '-xdev', '-type', 'f', '-name', 'occ'], stdout=subprocess.PIPE, text=True)
     if result.returncode == 0:
-        return result.stdout
+        return result.stdout.strip().split('\n')
     raise FileNotFoundError("occ not found!")
 
 
