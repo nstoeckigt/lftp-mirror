@@ -486,20 +486,20 @@ def arguments():
     shell.add_argument("--no-compress", action="store_true",
                        dest="no_compress", help="don't create daily archive "
                        "files", default=False)
-    shell.add_argument("--send-email", action="store_false", dest="no_email",
-                       help="sends email with the log", default=True)
-    shell.add_argument("--smtp_server", dest="smtp_server",
-                       default="localhost", metavar="server",
-                       help="set a smtp server")
-    shell.add_argument("--smtp_user", dest="smtp_user", default="",
-                       metavar="user", help="the smtp server username")
-    shell.add_argument("--smtp_pass", dest="smtp_pass", default="",
-                       metavar="password", help="the smtp server password")
-    shell.add_argument("--from_addr", dest="from_addr", default="",
-                       metavar="email", help="sender's email address")
-    shell.add_argument("--to_addrs", dest="to_addrs", default="", nargs='+',
+    shell.add_argument("--to-addrs", dest="to_addrs", default=None, nargs='+',
                        metavar="email",
                        help="a list of receiver(s)' email address(es)")
+    shell.add_argument("--smtp-config", metavar="mail config",
+                       help="config file to import arguments")
+    shell.add_argument("--smtp-server", dest="smtp_server",
+                       default="localhost", metavar="server",
+                       help="set a smtp server")
+    shell.add_argument("--smtp-user", dest="smtp_user", default="",
+                       metavar="user", help="the smtp server username")
+    shell.add_argument("--smtp-pass", dest="smtp_pass", default="",
+                       metavar="password", help="the smtp server password")
+    shell.add_argument("--from-addr", dest="from_addr", default="",
+                       metavar="email", help="sender's email address")
 
     parser.add_argument("--trace", action="store_true", dest="trace",
                         help=SUPPRESS, default=False)  # allow function snooping
@@ -819,14 +819,47 @@ def main():
                                                  cfg.get(sect, 'password'),
                                                  cfg.get(sect, 'options')))
             mir_res = mirror(args, log)
-    else:
+    else:  # shell
+        if args.to_addrs:
+            if args.smtp_config:
+                if any([args.smtp_server, args.smtp_user, args.smtp_pass, args.from_addr]):
+                    parser.error("When --smtp-config is provided, --smtp-server, --smtp-user, --smtp-pass, and --from-addr should not be provided")
+            else:
+                if not all([args.smtp_server, args.smtp_user, args.smtp_pass, args.from_addr]):
+                    parser.error("If --smtp-config is not provided, --smtp-server, --smtp-user, --smtp-pass, and --from-addr must all be provided")
+        else:
+            if any([args.smtp_server, args.smtp_user, args.smtp_pass, args.from_addr, args.smtp_config]):
+                parser.error("--to-addrs must be specified if any SMTP configuration is provided")
         mir_res = mirror(args, log)
 
     if args.update_cloud:
         reindex_cloud(args, log)
 
     # send the log by mail and write the log file
-    if not args.no_email:
+    if args.to_addrs and args.smtp_config:
+        smtp_config = {}
+        with open(args.smtp_config, 'r', encoding='utf-8') as smtp_config_file:
+            for line in smtp_config_file:
+                line = line.strip()
+                if not line or line.startswith('#'):
+                    continue
+
+                # Split the line into key and value
+                key, value = line.split('=', 1)
+                key = key.strip()
+                value = value.strip()
+
+                # Remove surrounding quotes if any
+                if (value.startswith('"') and value.endswith('"')) or (value.startswith("'") and value.endswith("'")):
+                    smtp_config[key] = value[1:-1]
+                else:
+                    smtp_config[key] = value
+
+        log.send('FTP Sync', send_from=smtp_config.get('from'), dest_to=args.to_addrs,
+                 mail_server=smtp_config.get('server'), server_user=smtp_config.get('user'),
+                 server_pass=smtp_config.get('pass'))
+
+    else:
         log.send('FTP Sync', send_from=args.from_addr, dest_to=args.to_addrs,
                  mail_server=args.smtp_server, server_user=args.smtp_user,
                  server_pass=args.smtp_pass)
