@@ -180,6 +180,7 @@ class Logger():
         if content:
             self.__format__(title, content, '=')
 
+    @snoop
     def list(self, title, content):
         """A list of text lines headed by a line full of '_'.
 
@@ -194,7 +195,12 @@ class Logger():
 
         """
         if content:
-            self.__format__(title, content, '_')
+            if isinstance(content, str):
+                self.__format__(title, content, '_')
+            elif isinstance(content, list):
+                self.__format__(title, [line.decode('utf-8', errors='replace') for line in content], '_')
+            else:
+                self.__format__(title, content.decode('utf-8', errors='replace'), '_')
 
     def free(self, content):
         """Free text unformatted.
@@ -320,6 +326,7 @@ class Logger():
             log_file.write(self.__log.encode('utf-8'))
 
 
+@logger.catch()
 def arguments():
     """Defines the command line arguments for the script."""
     main_desc = ("Mirror a remote FTP directory into a local directory or vice"
@@ -486,20 +493,18 @@ def arguments():
     shell.add_argument("--no-compress", action="store_true",
                        dest="no_compress", help="don't create daily archive "
                        "files", default=False)
-    shell.add_argument("--to-addrs", dest="to_addrs", default=None, nargs='+',
-                       metavar="email",
+    shell.add_argument("--to-addrs", dest="to_addrs", nargs='+', metavar="email",
                        help="a list of receiver(s)' email address(es)")
     shell.add_argument("--smtp-config", metavar="mail config",
                        help="config file to import arguments")
-    shell.add_argument("--smtp-server", dest="smtp_server",
-                       default="localhost", metavar="server",
+    shell.add_argument("--smtp-server", dest="smtp_server", metavar="server",
                        help="set a smtp server")
-    shell.add_argument("--smtp-user", dest="smtp_user", default="",
-                       metavar="user", help="the smtp server username")
-    shell.add_argument("--smtp-pass", dest="smtp_pass", default="",
-                       metavar="password", help="the smtp server password")
-    shell.add_argument("--from-addr", dest="from_addr", default="",
-                       metavar="email", help="sender's email address")
+    shell.add_argument("--smtp-user", dest="smtp_user", metavar="user",
+                       help="the smtp server username")
+    shell.add_argument("--smtp-pass", dest="smtp_pass", metavar="password",
+                       help="the smtp server password")
+    shell.add_argument("--from-addr", dest="from_addr", metavar="email",
+                       help="sender's email address")
 
     parser.add_argument("--trace", action="store_true", dest="trace",
                         help=SUPPRESS, default=False)  # allow function snooping
@@ -509,6 +514,7 @@ def arguments():
     return parser
 
 
+@logger.catch()
 def trace(func):
     """
     conditional snoop
@@ -520,6 +526,7 @@ def trace(func):
     return wrapper
 
 
+@logger.catch()
 def check_execs_posix_win(*progs):
     """Check if the programs are installed.
 
@@ -566,6 +573,7 @@ def check_execs_posix_win(*progs):
     return windows_paths, is_windows
 
 
+@logger.catch()
 def notify(msg, status):
     """Send notification status messages through libnotify.
 
@@ -592,6 +600,7 @@ def notify(msg, status):
         NOTIFY_ERRORS.append(e)
 
 
+@logger.catch()
 def best_unit_size(bytes_size):
     """Get a size in bytes & convert it to the best IEC prefix for readability.
 
@@ -611,6 +620,7 @@ def best_unit_size(bytes_size):
     return {'s': bu_size, 'u': unit, 'b': bytes_size}
 
 
+@logger.catch()
 def get_size(the_path):
     """Get size of a directory tree or a file in bytes."""
     path_size = 0
@@ -623,6 +633,7 @@ def get_size(the_path):
     return path_size
 
 
+@logger.catch()
 def compress(path):
     """Compress a local directory into a gz file.
 
@@ -759,6 +770,7 @@ def parse_parms(*parms):
     return parameters.split()
 
 
+@logger.catch()
 def main():
     """Main sect"""
 
@@ -823,7 +835,7 @@ def main():
         if args.to_addrs:
             if args.smtp_config:
                 if any([args.smtp_server, args.smtp_user, args.smtp_pass, args.from_addr]):
-                    parser.error("When --smtp-config is provided, --smtp-server, --smtp-user, --smtp-pass, and --from-addr should not be provided")
+                    print("When --smtp-config is provided, --smtp-server, --smtp-user, --smtp-pass, and --from-addr are ignored")
             else:
                 if not all([args.smtp_server, args.smtp_user, args.smtp_pass, args.from_addr]):
                     parser.error("If --smtp-config is not provided, --smtp-server, --smtp-user, --smtp-pass, and --from-addr must all be provided")
@@ -836,33 +848,34 @@ def main():
         reindex_cloud(args, log)
 
     # send the log by mail and write the log file
-    if args.to_addrs and args.smtp_config:
-        smtp_config = {}
-        with open(args.smtp_config, 'r', encoding='utf-8') as smtp_config_file:
-            for line in smtp_config_file:
-                line = line.strip()
-                if not line or line.startswith('#'):
-                    continue
+    if args.to_addrs:
+        if args.smtp_config:
+            smtp_config = {}
+            with open(args.smtp_config, 'r', encoding='utf-8') as smtp_config_file:
+                for line in smtp_config_file:
+                    line = line.strip()
+                    if not line or line.startswith('#'):
+                        continue
 
-                # Split the line into key and value
-                key, value = line.split('=', 1)
-                key = key.strip()
-                value = value.strip()
+                    # Split the line into key and value
+                    key, value = line.split('=', 1)
+                    key = key.strip()
+                    value = value.strip()
 
-                # Remove surrounding quotes if any
-                if (value.startswith('"') and value.endswith('"')) or (value.startswith("'") and value.endswith("'")):
-                    smtp_config[key] = value[1:-1]
-                else:
-                    smtp_config[key] = value
+                    # Remove surrounding quotes if any
+                    if (value.startswith('"') and value.endswith('"')) or (value.startswith("'") and value.endswith("'")):
+                        smtp_config[key] = value[1:-1]
+                    else:
+                        smtp_config[key] = value
 
-        log.send('FTP Sync', send_from=smtp_config.get('from'), dest_to=args.to_addrs,
-                 mail_server=smtp_config.get('server'), server_user=smtp_config.get('user'),
-                 server_pass=smtp_config.get('pass'))
+            log.send('FTP Sync', send_from=smtp_config.get('from'), dest_to=args.to_addrs,
+                     mail_server=smtp_config.get('server'), server_user=smtp_config.get('user'),
+                     server_pass=smtp_config.get('pass'))
 
-    else:
-        log.send('FTP Sync', send_from=args.from_addr, dest_to=args.to_addrs,
-                 mail_server=args.smtp_server, server_user=args.smtp_user,
-                 server_pass=args.smtp_pass)
+        else:
+            log.send('FTP Sync', send_from=args.from_addr, dest_to=args.to_addrs,
+                     mail_server=args.smtp_server, server_user=args.smtp_user,
+                     server_pass=args.smtp_pass)
 
     notify('Ended Ok', 'ok')
 
