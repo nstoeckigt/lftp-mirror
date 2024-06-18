@@ -412,34 +412,36 @@ of activity (in the file and in the mail).
 
  With this option will disable the compressed backups of the local directory.
 
-* `--no-email`
+* `--to-addrs` email [email ...]
 
- Disables mail delivery with the activity log.
+ a list of receiver(s)' email address(es)
 
 
 The mail is sent by default to the local user running the script, using the
 local mail server. if you want to use a different mail server or send it to
 other(s) recipient(s), then it is necessary to use the following options:
 
-* `--smtp_server`
+* `--smtp-config` filepath
+
+config file to import arguments
+
+When smtp config file is given the other smtp arguments are ignored!
+
+* `--smtp-server`
 
  The mail server that we want to use
 
-* `--smtp_user`
+* `--smtp-user`
 
  The mail server user
 
-* `--smtp_pass`
+* `--smtp-pass`
 
  The password for that user
 
-* `--from_addr`
+* `--smtp-from` email
 
  The email address to be included as the sender
-
-* `--to_addrs email`
-
- The email address(es) of who we want to send mail
 
 
 ## REPOSITORY
