@@ -397,7 +397,7 @@ def arguments():
     shell.add_argument("-p", "--port", dest="port", default="",
                        help="the ftp server port", metavar="port")
     shell.add_argument("-s", "--secure", action="store_const", const="s",
-                       dest="secure", default="",
+                       dest="secure",
                        help="use the sftp protocol instead of ftp")
     shell.add_argument("--ssl-verify", action="store_const", const="yes",
                        dest="ssl_verify", default="no",
@@ -698,9 +698,11 @@ def mirror(args, log):
         lines = (f"open {args.secure}ftp://{args.site} {port}",
                  f"user {user}",
                  f"set ssl:verify-certificate {args.ssl_verify}",
-                 f"set sftp:auto-confirm {no if args.ssl_verify else yes}",
                  f"mirror {scp_args} {local if args.reverse else remote} {remote if args.reverse else local}",
                  'exit')
+        if args.secure and not args.ssl_verify:
+            lines.insert(3, "set sftp:auto-confirm yes")
+
         script.write(os.linesep.join(lines))
 
     # mirror
