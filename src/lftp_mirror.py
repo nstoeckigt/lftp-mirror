@@ -681,7 +681,7 @@ def mirror(args, log):
     if not os.path.exists(local):
         os.mkdir(local)
         log.list('Created new directory', local)
-    os.chdir(os.path.join(local, os.pardir))
+    #os.chdir(os.path.join(os.getcwd(), local))
 
     # create the script file to import with lftp
     scp_args = ('-vvv' + args.erase + args.newer + args.reverse
@@ -695,12 +695,12 @@ def mirror(args, log):
     log.list('lftp mirror arguments', scp_args)
 
     with open('ftpscript', 'w') as script:
-        lines = (f"open {args.secure}ftp://{args.site} {port}",
+        lines = [f"open {args.secure}ftp://{args.site} {port}",
                  f"user {user}",
                  f"set ssl:verify-certificate {args.ssl_verify}",
-                 f"mirror {scp_args} {local if args.reverse else remote} {remote if args.reverse else local}",
-                 'exit')
-        if args.secure and not args.ssl_verify:
+                 f"mirror {scp_args} '{local if args.reverse else remote}' '{remote if args.reverse else local}'",
+                 'exit']
+        if args.secure and not args.ssl_verify == 'yes':
             lines.insert(3, "set sftp:auto-confirm yes")
 
         script.write(os.linesep.join(lines))
