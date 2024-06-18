@@ -492,9 +492,10 @@ def arguments():
     shell.add_argument("--compress", action="store_true",
                        dest="compress", default=False,
                        help="create daily archive files")
-    shell.add_argument("--to-addrs", dest="to_addrs", nargs='+', metavar="email",
+    shell.add_argument("--to-addrs", dest="to_addrs", nargs='+',
+                       metavar="<email address>",
                        help="a list of receiver(s)' email address(es)")
-    shell.add_argument("--smtp-config", metavar="mail config",
+    shell.add_argument("--smtp-config", metavar="<config file>",
                        help="config file to import arguments")
     shell.add_argument("--smtp-server", dest="smtp_server", metavar="server",
                        help="set a smtp server")
@@ -502,7 +503,7 @@ def arguments():
                        help="the smtp server username")
     shell.add_argument("--smtp-pass", dest="smtp_pass", metavar="password",
                        help="the smtp server password")
-    shell.add_argument("--from-addr", dest="from_addr", metavar="email",
+    shell.add_argument("--smtp-from", dest="from_addr", metavar="<email address>",
                        help="sender's email address")
 
     parser.add_argument("--trace", action="store_true", dest="trace",
