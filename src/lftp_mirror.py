@@ -180,7 +180,6 @@ class Logger():
         if content:
             self.__format__(title, content, '=')
 
-    @snoop
     def list(self, title, content):
         """A list of text lines headed by a line full of '_'.
 
@@ -490,9 +489,9 @@ def arguments():
     shell.add_argument("-q", "--quiet", action="store_true", dest="quiet",
                        help="the detailed shell process is no "
                        "displayed, but is added to the log", default=False)
-    shell.add_argument("--no-compress", action="store_true",
-                       dest="no_compress", help="don't create daily archive "
-                       "files", default=False)
+    shell.add_argument("--compress", action="store_true",
+                       dest="compress", default=False,
+                       help="create daily archive files")
     shell.add_argument("--to-addrs", dest="to_addrs", nargs='+', metavar="email",
                        help="a list of receiver(s)' email address(es)")
     shell.add_argument("--smtp-config", metavar="mail config",
@@ -634,10 +633,11 @@ def get_size(the_path):
 
 
 @logger.catch()
+@trace
 def compress(path):
     """Compress a local directory into a gz file.
 
-    Creates a file for each weekday, an removes the old files if exists"""
+    Creates a file for each weekday, and removes the old files if exists"""
     dir2gz = os.path.basename(path)
     old_gzs = glob.glob(f"{dir2gz}*{time.strftime('%a')}.tar.gz")
     gz_name = f"{dir2gz}_{time.strftime('%d%b%Y_%H:%M_%a')}.tar.gz"
@@ -711,7 +711,7 @@ def mirror(args, log):
         log.list('Notification errors', set(NOTIFY_ERRORS))
 
     # compress the dir and create a .gz file with date
-    if not args.reverse and not args.no_compress:
+    if not args.reverse and args.compress:
         notify('Compressing folder...', 'info')
         log.list('Rotate compressed copies', compress(local))
     # end compress
