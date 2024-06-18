@@ -698,6 +698,7 @@ def mirror(args, log):
         lines = (f"open {args.secure}ftp://{args.site} {port}",
                  f"user {user}",
                  f"set ssl:verify-certificate {args.ssl_verify}",
+                 f"set sftp:auto-confirm {no if args.ssl_verify else yes}",
                  f"mirror {scp_args} {local if args.reverse else remote} {remote if args.reverse else local}",
                  'exit')
         script.write(os.linesep.join(lines))
