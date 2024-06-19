@@ -77,10 +77,11 @@
 __author__ = "nico stöckigt - info@nstoeckigt.de"
 __license__ = "GNU General Public License version 3"
 __date__ = "06/06/2024"
-__version__ = "0.16a"
+__version__ = "0.16.2"
 
 import sys
 import os
+from typing import Union, Iterable
 
 try:
     import glob
@@ -144,68 +145,64 @@ class Logger():
         self.__script_name = os.path.basename(__file__).split('.')[0]
         self.filename = f"{self.__script_name}.log"
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self.__log)
 
-    def __format__(self, tit, cont, decor):
-        """Format a block or a list of lines to enhance comprehension.
+    def __format__(self, format_spec: str) -> str:
+        """Format the logged content based on format_spec.
 
-        (str) tit -- title for the block or list
-        (str or iterable) cont -- line/s for the list/block content
-        ('=' or '_') decor - define if it's list or block and decorate it
+        Args:
+            format_spec (str): The format specifier ('block' or 'list').
 
-        make the looks of self.block() and self.list()
+        Returns:
+            str: Formatted string representation of the logged content.
 
+        Raises:
+            ValueError: If an unsupported format specifier is provided.
         """
-        ending = {'=': '', '_': os.linesep}[decor]
-        end = {'=': '=' * 80, '_': ''}[decor]
-        begin = ' '.join([tit.upper(), (80 - (len(tit) + 1)) * decor]) + ending
-        cont = [cont] if isinstance(cont, str) else cont
-        sep = os.linesep
-        self.__log += sep.join([begin, sep.join(cont), end, sep])
+        if format_spec == 'block':
+            return f"{self.__log}"
+        elif format_spec == 'list':
+            return f"{self.__log}"
+        else:
+            raise ValueError("Unsupported format specifier")
 
-    def block(self, title, content):
-        """A block of text lines headed and followed by a line full of '='.
+    def block(self, title: str, content: Union[str, Iterable[str]]) -> None:
+        """Add a block of text lines with a title and decorations.
 
-        (str) title -- The title that start the first line of '='
-        (str or iterable) content -- The line/s between the '=' lines
-
-        There's not any empty line between the '=' lines and content, e.g.:
-
-        TITLE ==================================================
-        content
-        ========================================================
-
+        Args:
+            title (str): The title for the block.
+            content (str or iterable of str): The lines of content for the block.
         """
         if content:
-            self.__format__(title, content, '=')
-
-    def list(self, title, content):
-        """A list of text lines headed by a line full of '_'.
-
-        (str) title -- The title that start the line of '_'
-        (str or iterable) content -- The line/s after the '_' line
-
-        After the '_' line is a empty line between it and the content, e.g.:
-
-        TITLE __________________________________________________
-
-        content
-
-        """
-        if content:
+            self.__log += f"{title.upper()} {'=' * (80 - len(title))}{os.linesep}"
             if isinstance(content, str):
-                self.__format__(title, content, '_')
-            elif isinstance(content, list):
-                self.__format__(title, [line.decode('utf-8', errors='replace') for line in content], '_')
+                self.__log += f"{content}{os.linesep}"
             else:
-                self.__format__(title, content.decode('utf-8', errors='replace'), '_')
+                self.__log += os.linesep.join(content) + os.linesep
+            self.__log += '=' * 80 + os.linesep
 
-    def free(self, content):
-        """Free text unformatted.
+    def list(self, title: str, content: Union[str, Iterable[str]]) -> None:
+        """Add a list of text lines with a title and decorations.
 
-        (str) content -- Text free formated
+        Args:
+            title (str): The title for the list.
+            content (str or iterable of str): The lines of content for the list.
+        """
+        if content:
+            self.__log += f"{title.upper()} {'_' * (80 - len(title))}{os.linesep}"
+            if isinstance(content, str):
+                self.__log += f"{content}{os.linesep}"
+            elif isinstance(content, list):
+                self.__log += os.linesep.join(content) + os.linesep
+            else:
+                self.__log += content.decode('utf-8', errors='replace') + os.linesep
 
+    def free(self, content: str) -> None:
+        """Add free-form text to the log.
+
+        Args:
+            content (str): The free-form text to add.
         """
         if isinstance(content, str):
             self.__log += content + os.linesep * 2
@@ -240,7 +237,7 @@ class Logger():
         ========================================================
 
         """
-        script = f"{self.__script_name} (ver. { __version__}"
+        script = f"{self.__script_name} (v{ __version__})"
         self.block('Script', [script, url, '', msg])
 
     def get(self):
@@ -331,30 +328,31 @@ def arguments():
     main_desc = ("Mirror a remote FTP directory into a local directory or vice"
                  " versa through the lftp program")
     subs_desc = "Select a running mode from the following:"
-    epilog = ("For detailed help for each mode, select a mode followed by help"
-              " option, e.g.:{0}{0}%(prog)s shell -h").format(os.linesep)
+    epilog = (f"For detailed help for each mode, select a mode followed by help option,"
+              f" e.g.:{os.linesep}{os.linesep}%(prog)s shell -h")
     cron_use = "%(prog)s [-h]"
-    shell_use = ("%(prog)s site remote local [options]{0}{0}By default "
-                 "downloads the changes from remote FTP directory to local "
-                 "directory.{0}To upload changes from local to remote FTP, use"
-                 " the 'r, --reverse' option").format(os.linesep)
-    file_use = ("%(prog)s config_file [-h]{0}{0}The structure of the "
-                "config file (a simple text file) is as follows:{0}{0}[section]"
-                "{0}site = {{ftp server URL or IP}}{0}port = (ftp server port)"
-                "{0}remote = {{remote directory}}{0}local = {{local directory}}"
-                "{0}user = (ftp server username){0}password = (user password "
-                "encoded in base64){0}options = (other options){0}{0}Section is"
-                " a name that defines the mirror operation. Usually is the ftp "
-                "server's name or directory' name. Useful for distinguish one "
-                "mirror operation from others. Write one section for each "
-                "mirror action with no limits in the number of sections.{0}{0}"
-                "Values between curly brackets '{{}}' are required arguments "
-                "and values between brackets '()' are optional arguments. If "
-                "don't want optional arguments, left them blank. In case you do"
-                " not specify a username and password, you must add the '-a' "
-                "option which specifies that the connection is made with the "
-                "anonymous user.{0}{0}The order of arguments doesn't matter, "
-                "but all are needed.{0}{0}").format(os.linesep)
+    shell_use = (f"%(prog)s site remote local [options]{os.linesep}{os.linesep}By default "
+                  "downloads the changes from remote FTP directory to local "
+                 f"directory.{os.linesep}To upload changes from local to remote FTP, use"
+                  " the 'r, --reverse' option")
+    file_use = (f"%(prog)s config_file [-h]{os.linesep}{os.linesep}The structure of the "
+                f"config file (a simple text file) is as follows:{os.linesep}"
+                f"{os.linesep}[section]{os.linesep}site = {{ftp server URL or IP}}"
+                f"{os.linesep}port = (ftp server port){os.linesep}remote = "
+                f"{{remote directory}}{os.linesep}local = {{local directory}}"
+                f"{os.linesep}user = (ftp server username){os.linesep}password = "
+                f"(user password encoded in base64){os.linesep}options = (other options)"
+                f"{os.linesep}{os.linesep}Section is a name that defines the mirror operation. "
+                 "Usually is the ftp server's name or directory' name. Useful for distinguish one "
+                 "mirror operation from others. Write one section for each "
+                f"mirror action with no limits in the number of sections.{os.linesep}{os.linesep}"
+                 "Values between curly brackets '{{}}' are required arguments "
+                 "and values between brackets '()' are optional arguments. If "
+                 "don't want optional arguments, left them blank. In case you do"
+                 " not specify a username and password, you must add the '-a' "
+                 "option which specifies that the connection is made with the "
+                f"anonymous user.{os.linesep}{os.linesep}The order of arguments doesn't matter, "
+                f"but all are needed.{os.linesep}{os.linesep}")
 
     parser = ArgumentParser(description=main_desc, epilog=epilog)
     subparsers = parser.add_subparsers(title="running modes",
@@ -621,16 +619,18 @@ def best_unit_size(bytes_size):
 
 
 @logger.catch()
-def get_size(the_path):
+def get_path_info(the_path):
     """Get size of a directory tree or a file in bytes."""
     path_size = 0
+    file_count = 0
     for path, directories, files in os.walk(the_path):
+        file_count += len(files)
         for filename in files:
             path_size += os.lstat(os.path.join(path, filename)).st_size
         for directory in directories:
             path_size += os.lstat(os.path.join(path, directory)).st_size
     path_size += os.path.getsize(the_path)
-    return path_size
+    return (path_size, file_count)
 
 
 @logger.catch()
@@ -663,17 +663,15 @@ def mirror(args, log):
     local, remote = os.path.normpath(args.local), os.path.normpath(args.remote)
     port = f"-p {args.port}" if args.port else ''
     include = ''
-    for iglob in args.inc_glob:
-        include += f" --include-glob {iglob}"
+    include = " ".join(f" --include-glob {iglob}" for iglob in args.inc_glob)
     exclude = ''
-    for eglob in args.exc_glob:
-        exclude += f" --exclude-glob {eglob}"
+    exclude = " ".join(f" --include-glob {eglob}" for eglob in args.exc_glob)
     parallel = f" --parallel={args.parallel}" if args.parallel else ''
 
-    url = 'http://joedicastro.com'
-    msg = f"Connected to {args.site} as {'anonymous' if args.anonymous else args.login[0]}{os.linesep}"
-    msg += 'Mirror {0} to {1}'.format(local if args.reverse else remote,
-                                      remote if args.reverse else local)
+    url = "https://joedicastro.com{os.linesep}https://cloud.stephanradom.de"
+    msg = (f"Connected to {args.site} as {'anonymous' if args.anonymous else args.login[0]}"
+           f"{os.linesep}")
+    msg += f"Mirror {local if args.reverse else remote} to {remote if args.reverse else local}"
     log.header(url, msg)
     log.time('Start time')
     notify(f"Mirroring with {args.site}...", 'sync')
@@ -694,11 +692,12 @@ def mirror(args, log):
 
     log.list('lftp mirror arguments', scp_args)
 
-    with open('ftpscript', 'w') as script:
+    with open('ftpscript', 'w', encoding='utf-8') as script:
         lines = [f"open {args.secure}ftp://{args.site} {port}",
                  f"user {user}",
                  f"set ssl:verify-certificate {args.ssl_verify}",
-                 f"mirror {scp_args} '{local if args.reverse else remote}' '{remote if args.reverse else local}'",
+                 f"mirror {scp_args} '{local if args.reverse else remote}'"  # wrap
+                 f" '{remote if args.reverse else local}'",
                  'exit']
         if args.secure and not args.ssl_verify == 'yes':
             lines.insert(3, "set sftp:auto-confirm yes")
@@ -720,11 +719,11 @@ def mirror(args, log):
         log.list('Rotate compressed copies', compress(local))
     # end compress
 
-    gz_size = sum([get_size(gz) for gz in glob.glob(f"{local}*.gz")])
-    log_size = get_size(log.filename) if os.path.exists(log.filename) else 0
-    local_size = get_size(local)
+    gz_size = sum(get_path_info(gz)[0] for gz in glob.glob(f"{local}*.gz"))
+    log_size = get_path_info(log.filename)[0] if os.path.exists(log.filename) else 0
+    local_size, local_fcount = get_path_info(local)
     size = best_unit_size(local_size + gz_size + log_size)
-    log.block('Disk space used', '{0:>76.2f} {1}'.format(size['s'], size['u']))
+    log.block('Disk space used', f"{size['s']:>76.2f} {size['u']} in {local_fcount} files")
     log.time('End Time')
     log.free(os.linesep * 2)
     log.write(True)
@@ -736,14 +735,16 @@ def mirror(args, log):
 
 @logger.catch()
 def find_occ():
+    """locate the occ binary"""
     try:
-        result = subprocess.run(['locate', 'occ'], stdout=subprocess.PIPE, text=True)
+        result = subprocess.run(['locate', 'occ'], stdout=subprocess.PIPE, text=True, check=False)
         if result.returncode == 0:
             return [entry for entry in result.stdout.strip().split('\n') if entry.endswith('occ')]
     except FileNotFoundError:
         pass
 
-    result = subprocess.run(['find', '/', '-xdev', '-type', 'f', '-name', 'occ'], stdout=subprocess.PIPE, text=True)
+    result = subprocess.run(['find', '/', '-xdev', '-type', 'f', '-name', 'occ'],
+            stdout=subprocess.PIPE, text=True, check=False)
     if result.returncode == 0:
         return result.stdout.strip().split('\n')
     raise FileNotFoundError("occ not found!")
@@ -765,18 +766,22 @@ def reindex_cloud(args, log):
     notify(f"Re-Indexing cloud folder ${cloud_path}...", 'info')
     subprocess.run(['sudo', '-u', 'www-data', binary_path, 'files:scan',
         '--path', cloud_path], check=True)
+    log.block('Reindexing cloud', f"Cloud folder ${cloud_path} fully indexed.")
     notify(f"Cloud folder ${cloud_path} fully indexed.", 'ok')
 
 
 def parse_parms(*parms):
     """Parse parameters from script or config file to shell format."""
-    parameters = f"shell {parms[0]} -p {parms[1] if parms[1] else ''} {parms[2]} {parms[3]} -l {parms[4] if parms[4] else ''} {base64.b64decode(parms[5])} {parms[6]}"
+    parameters = (f"shell {parms[0]} -p {parms[1] if parms[1] else ''}"
+                  f"{parms[2]} {parms[3]} -l {parms[4] if parms[4] else ''}"
+                  f"{base64.b64decode(parms[5])} {parms[6]}")
     return parameters.split()
 
 
 @logger.catch()
 def main():
     """Main sect"""
+    global TRACE
 
 #==============================================================================
 # SCRIPT PARAMATERS TO EXECUTE THE SCRIPT AS A PROGRAMMED TASK
@@ -805,7 +810,7 @@ def main():
     # first, parse the arguments
     parser = arguments()
     args = parser.parse_args()
-    TRACE=args.trace
+    TRACE = args.trace
 
     # initalize the log
     log = Logger()
@@ -839,12 +844,15 @@ def main():
         if args.to_addrs:
             if args.smtp_config:
                 if any([args.smtp_server, args.smtp_user, args.smtp_pass, args.from_addr]):
-                    print("When --smtp-config is provided, --smtp-server, --smtp-user, --smtp-pass, and --from-addr are ignored")
+                    print("When --smtp-config is provided, --smtp-server, --smtp-user,"
+                          " --smtp-pass, and --from-addr are ignored")
             else:
                 if not all([args.smtp_server, args.smtp_user, args.smtp_pass, args.from_addr]):
-                    parser.error("If --smtp-config is not provided, --smtp-server, --smtp-user, --smtp-pass, and --from-addr must all be provided")
+                    parser.error("If --smtp-config is not provided, --smtp-server,"
+                                 " --smtp-user, --smtp-pass, and --from-addr must all be provided")
         else:
-            if any([args.smtp_server, args.smtp_user, args.smtp_pass, args.from_addr, args.smtp_config]):
+            if any([args.smtp_server, args.smtp_user, args.smtp_pass, args.from_addr,
+                    args.smtp_config]):
                 parser.error("--to-addrs must be specified if any SMTP configuration is provided")
         mir_res = mirror(args, log)
 
@@ -867,7 +875,8 @@ def main():
                     value = value.strip()
 
                     # Remove surrounding quotes if any
-                    if (value.startswith('"') and value.endswith('"')) or (value.startswith("'") and value.endswith("'")):
+                    if ((value.startswith('"') and value.endswith('"')) or
+                            (value.startswith("'") and value.endswith("'"))):
                         smtp_config[key] = value[1:-1]
                     else:
                         smtp_config[key] = value
