@@ -724,7 +724,8 @@ def mirror(args, log):
     log_size = get_path_info(log.filename)[0] if os.path.exists(log.filename) else 0
     local_size, local_fcount = get_path_info(local)
     size = best_unit_size(local_size + gz_size + log_size)
-    log.block('Disk space used', f"{local_fcount} files {size['s']:>76.2f} {size['u']}")
+    margin = (70 - len(str(local_fcount)))
+    log.block('Disk space used', f"{local_fcount} files{size['s']:>{margin}.2f} {size['u']}")
     log.time('End Time')
     log.free(os.linesep * 2)
     log.write(True)
