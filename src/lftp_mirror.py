@@ -161,9 +161,9 @@ class Logger():
             ValueError: If an unsupported format specifier is provided.
         """
         if format_spec == 'block':
-            return f"{self.__log}"
+            return f"{self.__log}{os.linesep}"
         elif format_spec == 'list':
-            return f"{self.__log}"
+            return f"{self.__log}{os.linesep}"
         else:
             raise ValueError("Unsupported format specifier")
 
@@ -669,7 +669,7 @@ def mirror(args, log):
     exclude = " ".join(f" --include-glob {eglob}" for eglob in args.exc_glob)
     parallel = f" --parallel={args.parallel}" if args.parallel else ''
 
-    url = "https://joedicastro.com{os.linesep}https://cloud.stephanradom.de"
+    url = f"https://joedicastro.com{os.linesep}https://cloud.stephanradom.de"
     msg = (f"Connected to {args.site} as {'anonymous' if args.anonymous else args.login[0]}"
            f"{os.linesep}")
     msg += f"Mirror {local if args.reverse else remote} to {remote if args.reverse else local}"
@@ -724,7 +724,7 @@ def mirror(args, log):
     log_size = get_path_info(log.filename)[0] if os.path.exists(log.filename) else 0
     local_size, local_fcount = get_path_info(local)
     size = best_unit_size(local_size + gz_size + log_size)
-    log.block('Disk space used', f"{size['s']:>76.2f} {size['u']} in {local_fcount} files")
+    log.block('Disk space used', f"{local_fcount} files {size['s']:>76.2f} {size['u']}")
     log.time('End Time')
     log.free(os.linesep * 2)
     log.write(True)
