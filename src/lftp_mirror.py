@@ -194,7 +194,8 @@ class Logger():
             if isinstance(content, str):
                 self.__log += f"{content}{os.linesep}"
             elif isinstance(content, list):
-                self.__log += os.linesep.join(content) + os.linesep
+                decoded_content = [line.decode('utf-8', errors='replace') for line in content]
+                self.__log += os.linesep.join(decoded_content) + os.linesep
             else:
                 self.__log += content.decode('utf-8', errors='replace') + os.linesep
 
