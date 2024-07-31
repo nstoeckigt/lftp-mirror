@@ -692,9 +692,10 @@ def mirror(args, log):
                 exclude + include + parallel)
 
     log.list('lftp mirror arguments', scp_args)
+    secure_prefix = "s" if args.secure else ""
 
     with open('ftpscript', 'w', encoding='utf-8') as script:
-        lines = [f"open {args.secure}ftp://{args.site} {port}",
+        lines = [f"open {secure_prefix}ftp://{args.site} {port}",
                  f"user {user}",
                  f"set ssl:verify-certificate {args.ssl_verify}",
                  f"mirror {scp_args} '{local if args.reverse else remote}'"  # wrap
